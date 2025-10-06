@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuction } from "../context/AuctionContext";
+import { useAuction } from "../context/auctionContext.jsx";
 
 function CreateAuction() {
   const [title, setTitle] = useState("");
