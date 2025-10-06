@@ -1,48 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useAuction } from "../context/auctionContext";
 
-const Navbar = ({ isLoggedIn, setIsLoggedIn, user, setUser, setToken }) => {
+const Navbar = () => {
+  const { user, setUser, token, logoutUser } = useAuction();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
-  const [currentUser, setCurrentUser] = useState(user);
-
-  useEffect(() => {
-    setCurrentUser(user);
-  }, [user]);
-
   const handleLogout = async () => {
-    try {
-      const token = localStorage.getItem("token");
-
-      await axios.post(
-        "http://localhost:8080/api/users/logout",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          withCredentials: true,
-        }
-      );
-
-      localStorage.removeItem("token"); // Clear token
-      setToken("");
-      setIsLoggedIn(false);
-      setUser(null);
-
-      navigate("/signup"); // Redirect to signup page
-    } catch (err) {
-      console.error("Logout failed", err);
-      alert("Logout failed! Try again.");
-    }
+    await logoutUser();
+    navigate("/signup");
   };
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-        {/* Left side - Logo */}
+        {/* Logo */}
         <Link to="/" className="flex items-center space-x-2">
           <div className="bg-blue-600 text-white font-bold rounded-full w-9 h-9 flex items-center justify-center">
             SA
@@ -50,8 +24,8 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn, user, setUser, setToken }) => {
           <span className="font-semibold text-lg text-gray-800">Smart Auction</span>
         </Link>
 
-        {/* Right side */}
-        {!isLoggedIn ? (
+        {/* Auth Links */}
+        {!token ? (
           <div className="space-x-4">
             <Link
               to="/login"
@@ -78,7 +52,7 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn, user, setUser, setToken }) => {
             {/* Profile */}
             <div className="relative">
               <img
-                src={currentUser?.profilePic || "https://via.placeholder.com/40"}
+                src={user?.profilePic || "https://via.placeholder.com/40"}
                 alt="profile"
                 className="w-10 h-10 rounded-full cursor-pointer border-2 border-gray-300"
                 onClick={() => setDropdownOpen(!dropdownOpen)}

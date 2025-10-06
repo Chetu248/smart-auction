@@ -30,12 +30,17 @@ export const AuctionProvider = ({ children }) => {
     if (!token) return { success: false, message: "Not logged in" };
     try {
       const res = await axios.post(`${API_URL}/auctions`, auctionData, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data", // 🔹 Fix for file uploads + imageUrls
+        },
       });
+
       setRefreshAuctions((prev) => !prev);
+
       return { success: true, auction: res.data.auction };
     } catch (err) {
-      console.error("Error creating auction:", err.message);
+      console.error("Error creating auction:", err.response?.data || err.message);
       return { success: false, message: err.response?.data?.message || err.message };
     }
   };
@@ -123,15 +128,19 @@ export const AuctionProvider = ({ children }) => {
     }
   };
 
-  const updateProfile = async (fullName, profilePic) => {
+  const updateProfile = async (formData) => {
     if (!token) return;
     try {
-      const res = await axios.put(
-        `${API_URL}/users/update-profile`,
-        { fullName, profilePic },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setUser(res.data.user);
+      const res = await axios.put(`${API_URL}/users/update-profile`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      if (res.data.success) {
+        setUser(res.data.userData);
+      }
+      return res.data;
     } catch (err) {
       console.error("Update profile error:", err.message);
     }
@@ -171,6 +180,7 @@ export const AuctionProvider = ({ children }) => {
         updateProfile,
         createAuction,
         logoutUser,
+        setUser,
       }}
     >
       {children}
