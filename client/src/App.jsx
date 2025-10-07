@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import axios from "axios";
 
+import { useAuction } from "./context/auctionContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
@@ -14,60 +14,19 @@ import UpdateProfile from "./pages/UpdateProfile";
 import ItemDetails from "./pages/ItemDetails";
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [isLoggedIn, setIsLoggedIn] = useState(!!token);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      if (token) {
-        try {
-          const res = await axios.get("http://localhost:8080/api/users/check-auth", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            withCredentials: true,
-          });
-
-          if (res.data.success) {
-            setUser(res.data.userData);
-            setIsLoggedIn(true);
-          } else {
-            setToken("");
-            setIsLoggedIn(false);
-            setUser(null);
-            localStorage.removeItem("token");
-          }
-        } catch (err) {
-          console.error("Auth check failed", err);
-          setToken("");
-          setIsLoggedIn(false);
-          setUser(null);
-          localStorage.removeItem("token");
-        }
-      }
-    };
-
-    checkAuth();
-  }, [token]);
+  const { user, token } = useAuction();
+  const isLoggedIn = !!token && !!user;
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar
-        isLoggedIn={isLoggedIn}
-        user={user}
-        setToken={setToken}
-        setIsLoggedIn={setIsLoggedIn}
-        setUser={setUser}
-      />
-
+      <Navbar />
       <main className="flex-1">
         <Routes>
           {!isLoggedIn ? (
             <>
               <Route path="/" element={<Navigate to="/signup" />} />
-              <Route path="/signup" element={<Signup setToken={setToken} />} />
-              <Route path="/login" element={<Login setToken={setToken} />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/login" element={<Login />} />
               <Route path="*" element={<Navigate to="/signup" />} />
             </>
           ) : (
@@ -85,7 +44,6 @@ function App() {
           )}
         </Routes>
       </main>
-
       <Footer />
     </div>
   );

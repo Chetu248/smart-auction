@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useAuction } from "../context/auctionContext"; // ✅ Import global context
 
-const Signup = ({ setToken }) => {
+const Signup = () => {
   const navigate = useNavigate();
+  const { loginUser } = useAuction(); // ✅ use loginUser from context
   const [form, setForm] = useState({ fullName: "", email: "", password: "" });
 
   const handleChange = (e) => {
@@ -18,8 +20,13 @@ const Signup = ({ setToken }) => {
         form,
         { withCredentials: true }
       );
+
+      // ✅ Store token for persistence
       localStorage.setItem("token", response.data.token);
-      setToken(response.data.token);
+
+      // ✅ Update user globally in context
+      await loginUser(response.data.user);
+
       navigate("/");
     } catch (err) {
       console.error(err);

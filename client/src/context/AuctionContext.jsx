@@ -16,41 +16,67 @@ export const AuctionProvider = ({ children }) => {
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
-  const fetchAuctions = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/auctions`);
-      setAuctions(res.data.auctions || []);
-    } catch (err) {
-      console.error("Error fetching auctions:", err.message);
-      setAuctions([]);
-    }
-  };
+  const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
+// ========================
+// Fetch All Auctions
+// ========================
+const fetchAuctions = async () => {
+  try {
+    const res = await axios.get(`${API_URL}/auctions`);
+    const auctionsData = res.data.auctions || [];
+
+    const cleanedAuctions = auctionsData.map((a) => ({
+      ...a,
+      title: a.title && a.title.trim() ? a.title.trim() : "Untitled Auction",
+      description: a.description && a.description.trim() ? a.description.trim() : "No description available",
+      startingPrice: a.startingPrice ?? 0,
+      currentBid: a.currentBid ?? a.startingPrice ?? 0,
+      images:
+        a.images && a.images.length > 0
+          ? a.images
+          : a.imageUrls && a.imageUrls.length > 0
+          ? a.imageUrls
+          : ["https://via.placeholder.com/300"],
+    }));
+
+    setAuctions(cleanedAuctions);
+  } catch (err) {
+    console.error("Error fetching auctions:", err.message);
+    setAuctions([]);
+  }
+};
+
+
+  // ========================
+  // Create Auction
+  // ========================
   const createAuction = async (auctionData) => {
     if (!token) return { success: false, message: "Not logged in" };
     try {
       const res = await axios.post(`${API_URL}/auctions`, auctionData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data", // 🔹 Fix for file uploads + imageUrls
-        },
+        headers: authHeaders(),
       });
-
       setRefreshAuctions((prev) => !prev);
-
       return { success: true, auction: res.data.auction };
     } catch (err) {
       console.error("Error creating auction:", err.response?.data || err.message);
-      return { success: false, message: err.response?.data?.message || err.message };
+      return {
+        success: false,
+        message: err.response?.data?.message || err.message,
+      };
     }
   };
 
+  // ========================
+  // Fetch Single Auction
+  // ========================
   const fetchAuctionById = async (id) => {
     if (!id) return;
     setLoadingAuction(true);
     try {
       const res = await axios.get(`${API_URL}/auctions/${id}`);
-      setSelectedAuction(res.data.item || res.data.auction || res.data);
+      setSelectedAuction(res.data.auction || res.data.item || res.data);
       setBids(res.data.bids || []);
     } catch (err) {
       console.error("Error fetching auction:", err.message);
@@ -61,11 +87,14 @@ export const AuctionProvider = ({ children }) => {
     }
   };
 
+  // ========================
+  // My Auctions / Purchases
+  // ========================
   const fetchMyAuctions = async () => {
     if (!token) return;
     try {
       const res = await axios.get(`${API_URL}/auctions/my-auctions`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       });
       setMyAuctions(res.data.auctions || []);
     } catch (err) {
@@ -78,7 +107,7 @@ export const AuctionProvider = ({ children }) => {
     if (!token) return;
     try {
       const res = await axios.get(`${API_URL}/auctions/my-purchases`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeaders(),
       });
       setMyPurchases(res.data.auctions || []);
     } catch (err) {
@@ -87,20 +116,33 @@ export const AuctionProvider = ({ children }) => {
     }
   };
 
+  // ========================
+  // Place Bid
+  // ========================
   const placeBid = async (auctionId, amount) => {
-    if (!auctionId || !token) return;
+    if (!auctionId || !token)
+      return { success: false, message: "Not authenticated" };
     try {
-      await axios.post(
+      const res = await axios.post(
         `${API_URL}/bids/${auctionId}/bid`,
         { amount },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: authHeaders() }
       );
-      fetchAuctionById(auctionId);
+      await fetchAuctionById(auctionId);
+      setRefreshAuctions((p) => !p);
+      return { success: true, data: res.data };
     } catch (err) {
-      console.error("Error placing bid:", err.message);
+      console.error("Error placing bid:", err.response?.data || err.message);
+      return {
+        success: false,
+        message: err.response?.data?.message || err.message,
+      };
     }
   };
 
+  // ========================
+  // Auth: Login / Signup / Logout
+  // ========================
   const loginUser = async (email, password) => {
     try {
       const res = await axios.post(`${API_URL}/users/login`, { email, password });
@@ -108,10 +150,12 @@ export const AuctionProvider = ({ children }) => {
         setUser(res.data.userData);
         setToken(res.data.token);
         localStorage.setItem("token", res.data.token);
+        localStorage.setItem("user", JSON.stringify(res.data.userData));
       }
       return res.data;
     } catch (err) {
       console.error("Login error:", err.message);
+      return { success: false, message: err.message };
     }
   };
 
@@ -125,6 +169,7 @@ export const AuctionProvider = ({ children }) => {
       return res.data;
     } catch (err) {
       console.error("Signup error:", err.message);
+      return { success: false, message: err.message };
     }
   };
 
@@ -132,33 +177,69 @@ export const AuctionProvider = ({ children }) => {
     if (!token) return;
     try {
       const res = await axios.put(`${API_URL}/users/update-profile`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
+        headers: authHeaders(),
       });
       if (res.data.success) {
         setUser(res.data.userData);
+        localStorage.setItem("user", JSON.stringify(res.data.userData));
       }
       return res.data;
     } catch (err) {
-      console.error("Update profile error:", err.message);
+      console.error("Update profile error:", err.response?.data || err.message);
+      return {
+        success: false,
+        message: err.response?.data?.message || err.message,
+      };
     }
   };
 
   const logoutUser = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
     setToken("");
     window.location.href = "/signup";
   };
 
+  // ========================
+  // Check Auth
+  // ========================
+  const checkAuth = async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API_URL}/users/check-auth`, {
+        headers: authHeaders(),
+      });
+      if (res.data.success) {
+        setUser(res.data.userData);
+        localStorage.setItem("user", JSON.stringify(res.data.userData));
+      } else {
+        logoutUser();
+      }
+    } catch (err) {
+      console.error("checkAuth error:", err.response?.data || err.message);
+      logoutUser();
+    }
+  };
+
+  // ========================
+  // Restore user instantly from localStorage
+  // ========================
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
+    if (storedUser && storedToken) {
+      setUser(JSON.parse(storedUser));
+      setToken(storedToken);
+    }
+  }, []);
+
+  // ========================
+  // Initial Load & Re-verify user
+  // ========================
   useEffect(() => {
     fetchAuctions();
-    if (token) {
-      fetchMyAuctions();
-      fetchMyPurchases();
-    }
+    if (token) checkAuth();
   }, [token, refreshAuctions]);
 
   return (
@@ -181,6 +262,7 @@ export const AuctionProvider = ({ children }) => {
         createAuction,
         logoutUser,
         setUser,
+        checkAuth,
       }}
     >
       {children}

@@ -77,6 +77,7 @@ export const login = async (req, res) => {
 // Check Auth Controller
 // ========================
 export const checkAuth = (req, res) => {
+  // ✅ FIX: return fresh user data (req.user should already be populated by auth middleware)
   res.json({ success: true, userData: req.user });
 };
 
@@ -101,12 +102,27 @@ export const updateProfile = async (req, res) => {
       updateData.password = await bcrypt.hash(password, salt);
     }
 
-    // ✅ If file uploaded, upload to Cloudinary
+    // ✅ If file uploaded, upload to Cloudinary (using buffer or path depending on setup)
     if (file) {
-      const uploaded = await cloudinary.uploader.upload(file.path, {
-        folder: "user_profiles",
-      });
-      updateData.profilePic = uploaded.secure_url;
+      // If using multer.diskStorage -> file.path available; if memoryStorage -> file.buffer
+      if (file.path) {
+        const uploaded = await cloudinary.uploader.upload(file.path, {
+          folder: "user_profiles",
+        });
+        updateData.profilePic = uploaded.secure_url;
+      } else if (file.buffer) {
+        const uploaded = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: "user_profiles" },
+            (error, result) => {
+              if (error) return reject(error);
+              resolve(result);
+            }
+          );
+          stream.end(file.buffer);
+        });
+        if (uploaded?.secure_url) updateData.profilePic = uploaded.secure_url;
+      }
     }
     // ✅ If user entered image URL instead
     else if (profilePicUrl) {
@@ -125,6 +141,7 @@ export const updateProfile = async (req, res) => {
       return res.json({ success: false, message: "User not found" });
     }
 
+    // ✅ FIX: return updated user data so frontend can refresh local state
     res.json({
       success: true,
       message: "Profile updated successfully",
