@@ -2,38 +2,54 @@ import Auction from "../models/Auction.js";
 import Bid from "../models/Bid.js";
 import cloudinary from "../lib/cloudinary.js";
 
-// Helper to close auction if endTime passed
+// ========================
+// Helper: Auto-close expired auctions
+// ========================
 async function checkAndCloseAuction(auction) {
   if (!auction) return auction;
-  if (auction.status === "Active" && auction.endTime && new Date() >= new Date(auction.endTime)) {
+
+  if (
+    auction.status === "Active" &&
+    auction.endTime &&
+    new Date() >= new Date(auction.endTime)
+  ) {
     auction.status = "Ended";
     if (auction.highestBidder) {
       auction.winner = auction.highestBidder;
     }
     await auction.save();
   }
+
   return auction;
 }
 
-// Helper to parse numbers safely
+// ========================
+// Helper: Safe number parser
+// ========================
 function bodyValueAsNumber(value, defaultValue) {
   const num = Number(value);
   return isNaN(num) ? defaultValue : num;
 }
 
 // ========================
-// Create Auction
+// CREATE AUCTION
 // ========================
 export const createAuction = async (req, res) => {
   try {
     if (!req.user) {
-      return res.status(401).json({ success: false, message: "Not authorized" });
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
     }
+
+    console.log("📦 Received FormData body:", req.body);
+    console.log("🖼️ Received files:", req.files?.length || 0);
 
     const body = req.body || {};
     const images = [];
 
-    // Handle uploaded image files
+    // ===== Handle uploaded image files (from multer) =====
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const uploaded = await new Promise((resolve, reject) => {
@@ -46,11 +62,12 @@ export const createAuction = async (req, res) => {
           );
           stream.end(file.buffer);
         });
+
         if (uploaded?.secure_url) images.push(uploaded.secure_url);
       }
     }
 
-    // Handle image URLs from formData
+    // ===== Handle image URLs (if sent in formData) =====
     let urls = [];
     if (body.imageUrls) {
       try {
@@ -61,17 +78,22 @@ export const createAuction = async (req, res) => {
         urls = [];
       }
     }
-    if (Array.isArray(urls) && urls.length > 0) images.push(...urls);
 
-    const startingPrice = bodyValueAsNumber(body.startingPrice, 0);
+    if (Array.isArray(urls) && urls.length > 0) {
+      images.push(...urls);
+    }
+
+    // ===== Parse numeric + date fields =====
+    const startingPrice = bodyValueAsNumber(body.startingPrice, 1);
     const reservePrice = bodyValueAsNumber(body.reservePrice, undefined);
     const bidIncrement = bodyValueAsNumber(body.bidIncrement, 1);
     const endTime = body.endTime ? new Date(body.endTime) : null;
 
+    // ===== Create Auction document =====
     const auction = await Auction.create({
-      title: (body.title && body.title.trim()) || "Untitled Auction",
-      description: (body.description && body.description.trim()) || "No description available",
-      category: body.category || "General",
+      title: body.title?.trim() || "Untitled Auction",
+      description: body.description?.trim() || "No description available",
+      category: body.category?.trim() || "General",
       startingPrice,
       reservePrice,
       bidIncrement,
@@ -82,15 +104,17 @@ export const createAuction = async (req, res) => {
       images: images.length ? images : ["https://via.placeholder.com/300"],
     });
 
+    console.log("✅ Auction created:", auction);
+
     res.status(201).json({ success: true, auction });
   } catch (err) {
-    console.error("Error creating auction:", err);
+    console.error("❌ Error creating auction:", err);
     res.status(400).json({ success: false, message: err.message });
   }
 };
 
 // ========================
-// Get All Active Auctions
+// GET ALL ACTIVE AUCTIONS
 // ========================
 export const getAuctions = async (req, res) => {
   try {
@@ -99,19 +123,19 @@ export const getAuctions = async (req, res) => {
       "fullName profilePic"
     );
 
+    // Auto-close expired ones
     await Promise.all(auctions.map(async (a) => await checkAndCloseAuction(a)));
 
-    const cleanAuctions = auctions.map(a => ({
+    const cleanAuctions = auctions.map((a) => ({
       ...a.toObject(),
-      title: a.title && a.title.trim() ? a.title.trim() : "Untitled Auction",
-      description: a.description && a.description.trim() ? a.description.trim() : "No description available",
+      title: a.title?.trim() || "Untitled Auction",
+      description: a.description?.trim() || "No description available",
       startingPrice: a.startingPrice ?? 0,
       currentBid: a.currentBid ?? a.startingPrice ?? 0,
-      images: a.images && a.images.length > 0
-        ? a.images
-        : a.imageUrls && a.imageUrls.length > 0
-        ? a.imageUrls
-        : ["https://via.placeholder.com/300"],
+      images:
+        a.images?.length > 0
+          ? a.images
+          : ["https://via.placeholder.com/300"],
     }));
 
     res.json({ success: true, auctions: cleanAuctions });
@@ -122,7 +146,7 @@ export const getAuctions = async (req, res) => {
 };
 
 // ========================
-// Get Auction by ID
+// GET AUCTION BY ID
 // ========================
 export const getAuctionById = async (req, res) => {
   try {
@@ -146,15 +170,14 @@ export const getAuctionById = async (req, res) => {
       success: true,
       auction: {
         ...auction.toObject(),
-        title: auction.title && auction.title.trim() ? auction.title.trim() : "Untitled Auction",
-        description: auction.description && auction.description.trim() ? auction.description.trim() : "No description available",
+        title: auction.title?.trim() || "Untitled Auction",
+        description: auction.description?.trim() || "No description available",
         startingPrice: auction.startingPrice ?? 0,
         currentBid: auction.currentBid ?? auction.startingPrice ?? 0,
-        images: auction.images && auction.images.length > 0
-          ? auction.images
-          : auction.imageUrls && auction.imageUrls.length > 0
-          ? auction.imageUrls
-          : ["https://via.placeholder.com/300"],
+        images:
+          auction.images?.length > 0
+            ? auction.images
+            : ["https://via.placeholder.com/300"],
       },
       bids,
     });
@@ -165,7 +188,7 @@ export const getAuctionById = async (req, res) => {
 };
 
 // ========================
-// Get User’s Auctions
+// GET USER’S AUCTIONS
 // ========================
 export const getMyAuctions = async (req, res) => {
   try {
@@ -184,7 +207,7 @@ export const getMyAuctions = async (req, res) => {
 };
 
 // ========================
-// Get User’s Purchases
+// GET USER’S PURCHASES
 // ========================
 export const getMyPurchases = async (req, res) => {
   try {
@@ -201,7 +224,7 @@ export const getMyPurchases = async (req, res) => {
 };
 
 // ========================
-// Place Bid
+// PLACE BID
 // ========================
 export const placeBid = async (req, res) => {
   try {
@@ -211,6 +234,7 @@ export const placeBid = async (req, res) => {
     if (!auction)
       return res.status(404).json({ success: false, message: "Auction not found" });
 
+    // Auto-close if time passed
     if (auction.endTime && new Date() >= new Date(auction.endTime)) {
       if (auction.status === "Active") {
         auction.status = "Ended";
@@ -223,7 +247,8 @@ export const placeBid = async (req, res) => {
     if (auction.status === "Ended")
       return res.status(400).json({ success: false, message: "Auction ended" });
 
-    if (auction.owner && auction.owner.toString() === req.user._id.toString()) {
+    // Prevent self-bidding
+    if (auction.owner?.toString() === req.user._id.toString()) {
       return res
         .status(403)
         .json({ success: false, message: "You cannot bid on your own auction" });
@@ -234,7 +259,9 @@ export const placeBid = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid bid amount" });
     }
 
-    const minRequired = (auction.currentBid || auction.startingPrice || 0) + (auction.bidIncrement || 1);
+    const minRequired =
+      (auction.currentBid || auction.startingPrice || 0) +
+      (auction.bidIncrement || 1);
 
     if (numericAmount < minRequired)
       return res.status(400).json({ success: false, message: "Bid too low" });

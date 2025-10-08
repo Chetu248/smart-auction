@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuction } from "../context/auctionContext.jsx";
+import { useAuction } from "../context/AuctionContext.jsx";
 
 function CreateAuction() {
   const [title, setTitle] = useState("");
@@ -34,22 +34,30 @@ function CreateAuction() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Build formData
     const formData = new FormData();
-    formData.append("title", title);
-    formData.append("description", description);
-    formData.append("category", category);
-    formData.append("startingPrice", startingPrice);
-    formData.append("reservePrice", reservePrice);
-    formData.append("bidIncrement", bidIncrement);
-    formData.append("endTime", endTime);
 
-    // Append image files
+    // Append text fields
+    formData.append("title", title?.trim() || "");
+    formData.append("description", description?.trim() || "");
+    formData.append("category", category?.trim() || "");
+
+    // Convert numbers before appending (send numeric values as strings but explicitly converted)
+    // Backend will parse them to numbers safely
+    formData.append("startingPrice", startingPrice === "" ? "" : Number(startingPrice));
+    formData.append("reservePrice", reservePrice === "" ? "" : Number(reservePrice));
+    formData.append("bidIncrement", bidIncrement === "" ? "" : Number(bidIncrement));
+
+    // End time as ISO string (send empty string if not present)
+    formData.append("endTime", endTime ? new Date(endTime).toISOString() : "");
+
+    // Append image files (field name "images" — backend should use multer('images') or .array('images'))
     imageFiles.forEach((file) => {
       formData.append("images", file);
     });
 
-    // Append image URLs as JSON string
-    formData.append("imageUrls", JSON.stringify(imageUrls));
+    // Append imageUrls as JSON string (backend parses JSON)
+    formData.append("imageUrls", JSON.stringify(imageUrls || []));
 
     const result = await createAuction(formData);
 

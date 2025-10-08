@@ -18,35 +18,37 @@ export const AuctionProvider = ({ children }) => {
 
   const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
-// ========================
-// Fetch All Auctions
-// ========================
-const fetchAuctions = async () => {
-  try {
-    const res = await axios.get(`${API_URL}/auctions`);
-    const auctionsData = res.data.auctions || [];
+  // ========================
+  // Fetch All Auctions
+  // ========================
+  const fetchAuctions = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auctions`);
+      const auctionsData = res.data.auctions || [];
 
-    const cleanedAuctions = auctionsData.map((a) => ({
-      ...a,
-      title: a.title && a.title.trim() ? a.title.trim() : "Untitled Auction",
-      description: a.description && a.description.trim() ? a.description.trim() : "No description available",
-      startingPrice: a.startingPrice ?? 0,
-      currentBid: a.currentBid ?? a.startingPrice ?? 0,
-      images:
-        a.images && a.images.length > 0
-          ? a.images
-          : a.imageUrls && a.imageUrls.length > 0
-          ? a.imageUrls
-          : ["https://via.placeholder.com/300"],
-    }));
+      const cleanedAuctions = auctionsData.map((a) => ({
+        ...a,
+        title: a.title && a.title.trim() ? a.title.trim() : "Untitled Auction",
+        description:
+          a.description && a.description.trim()
+            ? a.description.trim()
+            : "No description available",
+        startingPrice: a.startingPrice ?? 0,
+        currentBid: a.currentBid ?? a.startingPrice ?? 0,
+        images:
+          a.images && a.images.length > 0
+            ? a.images
+            : a.imageUrls && a.imageUrls.length > 0
+            ? a.imageUrls
+            : ["https://via.placeholder.com/300"],
+      }));
 
-    setAuctions(cleanedAuctions);
-  } catch (err) {
-    console.error("Error fetching auctions:", err.message);
-    setAuctions([]);
-  }
-};
-
+      setAuctions(cleanedAuctions);
+    } catch (err) {
+      console.error("Error fetching auctions:", err.message);
+      setAuctions([]);
+    }
+  };
 
   // ========================
   // Create Auction
@@ -54,8 +56,13 @@ const fetchAuctions = async () => {
   const createAuction = async (auctionData) => {
     if (!token) return { success: false, message: "Not logged in" };
     try {
+      // Let axios/browser set the multipart boundary; include auth header
       const res = await axios.post(`${API_URL}/auctions`, auctionData, {
-        headers: authHeaders(),
+        headers: {
+          ...authHeaders(),
+          // Do NOT set Content-Type manually with a fixed boundary; letting axios handle it avoids boundary errors.
+          // If you need special handling, use: 'Content-Type': 'multipart/form-data'
+        },
       });
       setRefreshAuctions((prev) => !prev);
       return { success: true, auction: res.data.auction };
