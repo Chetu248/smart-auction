@@ -56,12 +56,9 @@ export const AuctionProvider = ({ children }) => {
   const createAuction = async (auctionData) => {
     if (!token) return { success: false, message: "Not logged in" };
     try {
-      // Let axios/browser set the multipart boundary; include auth header
       const res = await axios.post(`${API_URL}/auctions`, auctionData, {
         headers: {
           ...authHeaders(),
-          // Do NOT set Content-Type manually with a fixed boundary; letting axios handle it avoids boundary errors.
-          // If you need special handling, use: 'Content-Type': 'multipart/form-data'
         },
       });
       setRefreshAuctions((prev) => !prev);
@@ -150,16 +147,12 @@ export const AuctionProvider = ({ children }) => {
   // ========================
   // Auth: Login / Signup / Logout
   // ========================
-  const loginUser = async (email, password) => {
+  const loginUser = async (userData) => {
     try {
-      const res = await axios.post(`${API_URL}/users/login`, { email, password });
-      if (res.data.success) {
-        setUser(res.data.userData);
-        setToken(res.data.token);
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("user", JSON.stringify(res.data.userData));
-      }
-      return res.data;
+      // ✅ userData is passed directly from Login.jsx
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+      return { success: true };
     } catch (err) {
       console.error("Login error:", err.message);
       return { success: false, message: err.message };
@@ -230,14 +223,23 @@ export const AuctionProvider = ({ children }) => {
   };
 
   // ========================
-  // Restore user instantly from localStorage
+  // Restore user instantly from localStorage (Safe parse)
   // ========================
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
+    try {
+      const storedUser = localStorage.getItem("user");
+      const storedToken = localStorage.getItem("token");
+
+      if (storedToken) setToken(storedToken);
+
+      if (storedUser && storedUser !== "undefined" && storedUser !== "null") {
+        setUser(JSON.parse(storedUser));
+      } else {
+        localStorage.removeItem("user");
+      }
+    } catch (err) {
+      console.error("Error parsing stored user:", err);
+      localStorage.removeItem("user");
     }
   }, []);
 

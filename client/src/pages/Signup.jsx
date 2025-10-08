@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import { useAuction } from "../context/auctionContext"; // ✅ Import global context
+import { useAuction } from "../context/auctionContext"; // ✅ Import context
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { loginUser } = useAuction(); // ✅ use loginUser from context
+  const { signupUser } = useAuction(); // ✅ use signupUser from context
   const [form, setForm] = useState({ fullName: "", email: "", password: "" });
 
   const handleChange = (e) => {
@@ -14,23 +13,14 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const response = await axios.post(
-        "http://localhost:8080/api/users/signup",
-        form,
-        { withCredentials: true }
-      );
 
-      // ✅ Store token for persistence
-      localStorage.setItem("token", response.data.token);
+    const res = await signupUser(form.fullName, form.email, form.password);
 
-      // ✅ Update user globally in context
-      await loginUser(response.data.user);
-
-      navigate("/");
-    } catch (err) {
-      console.error(err);
-      alert("Signup failed! Try again.");
+    if (res.success) {
+      alert("Signup successful!");
+      navigate("/"); // redirect to home
+    } else {
+      alert(res.message || "Signup failed! Try again.");
     }
   };
 
