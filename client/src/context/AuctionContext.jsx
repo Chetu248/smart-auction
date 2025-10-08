@@ -18,9 +18,7 @@ export const AuctionProvider = ({ children }) => {
 
   const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
-  // ========================
   // Fetch All Auctions
-  // ========================
   const fetchAuctions = async () => {
     try {
       const res = await axios.get(`${API_URL}/auctions`);
@@ -50,9 +48,7 @@ export const AuctionProvider = ({ children }) => {
     }
   };
 
-  // ========================
   // Create Auction
-  // ========================
   const createAuction = async (auctionData) => {
     if (!token) return { success: false, message: "Not logged in" };
     try {
@@ -72,9 +68,7 @@ export const AuctionProvider = ({ children }) => {
     }
   };
 
-  // ========================
   // Fetch Single Auction
-  // ========================
   const fetchAuctionById = async (id) => {
     if (!id) return;
     setLoadingAuction(true);
@@ -91,9 +85,7 @@ export const AuctionProvider = ({ children }) => {
     }
   };
 
-  // ========================
   // My Auctions / Purchases
-  // ========================
   const fetchMyAuctions = async () => {
     if (!token) return;
     try {
@@ -120,9 +112,7 @@ export const AuctionProvider = ({ children }) => {
     }
   };
 
-  // ========================
   // Place Bid
-  // ========================
   const placeBid = async (auctionId, amount) => {
     if (!auctionId || !token)
       return { success: false, message: "Not authenticated" };
@@ -144,9 +134,7 @@ export const AuctionProvider = ({ children }) => {
     }
   };
 
-  // ========================
   // Auth: Login / Signup / Logout
-  // ========================
   const loginUser = async (userData) => {
     try {
       // ✅ userData is passed directly from Login.jsx
@@ -201,9 +189,7 @@ export const AuctionProvider = ({ children }) => {
     window.location.href = "/signup";
   };
 
-  // ========================
   // Check Auth
-  // ========================
   const checkAuth = async () => {
     if (!token) return;
     try {
@@ -222,9 +208,7 @@ export const AuctionProvider = ({ children }) => {
     }
   };
 
-  // ========================
   // Restore user instantly from localStorage (Safe parse)
-  // ========================
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("user");
@@ -243,10 +227,8 @@ export const AuctionProvider = ({ children }) => {
     }
   }, []);
 
-  // ========================
   // Initial Load & Re-verify user
-  // ========================
-  useEffect(() => {
+    useEffect(() => {
     fetchAuctions();
     if (token) checkAuth();
   }, [token, refreshAuctions]);

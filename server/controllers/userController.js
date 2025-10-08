@@ -3,9 +3,7 @@ import { generateToken } from "../lib/utils.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 
-// ========================
 // Signup Controller
-// ========================
 export const signup = async (req, res) => {
   const { email, fullName, password } = req.body;
   try {
@@ -41,9 +39,7 @@ export const signup = async (req, res) => {
   }
 };
 
-// ========================
 // Login Controller
-// ========================
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -73,17 +69,13 @@ export const login = async (req, res) => {
   }
 };
 
-// ========================
 // Check Auth Controller
-// ========================
 export const checkAuth = (req, res) => {
   // ✅ FIX: return fresh user data (req.user should already be populated by auth middleware)
   res.json({ success: true, userData: req.user });
 };
 
-// ========================
 // Update Profile Controller
-// ========================
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -153,9 +145,7 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-// ========================
 // Logout Controller
-// ========================
 export const logout = (req, res) => {
   try {
     res.clearCookie("token", { path: "/" });

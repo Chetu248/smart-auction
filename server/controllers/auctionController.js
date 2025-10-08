@@ -2,9 +2,7 @@ import Auction from "../models/Auction.js";
 import Bid from "../models/Bid.js";
 import cloudinary from "../lib/cloudinary.js";
 
-// ========================
 // Helper: Auto-close expired auctions
-// ========================
 async function checkAndCloseAuction(auction) {
   if (!auction) return auction;
 
@@ -23,17 +21,13 @@ async function checkAndCloseAuction(auction) {
   return auction;
 }
 
-// ========================
 // Helper: Safe number parser
-// ========================
 function bodyValueAsNumber(value, defaultValue) {
   const num = Number(value);
   return isNaN(num) ? defaultValue : num;
 }
 
-// ========================
 // CREATE AUCTION
-// ========================
 export const createAuction = async (req, res) => {
   try {
     if (!req.user) {
@@ -49,7 +43,7 @@ export const createAuction = async (req, res) => {
     const body = req.body || {};
     const images = [];
 
-    // ===== Handle uploaded image files (from multer) =====
+    // Handle uploaded image files (from multer)
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const uploaded = await new Promise((resolve, reject) => {
@@ -67,7 +61,7 @@ export const createAuction = async (req, res) => {
       }
     }
 
-    // ===== Handle image URLs (if sent in formData) =====
+    // Handle image URLs (if sent in formData) 
     let urls = [];
     if (body.imageUrls) {
       try {
@@ -83,13 +77,13 @@ export const createAuction = async (req, res) => {
       images.push(...urls);
     }
 
-    // ===== Parse numeric + date fields =====
+    //  Parse numeric + date fields
     const startingPrice = bodyValueAsNumber(body.startingPrice, 1);
     const reservePrice = bodyValueAsNumber(body.reservePrice, undefined);
     const bidIncrement = bodyValueAsNumber(body.bidIncrement, 1);
     const endTime = body.endTime ? new Date(body.endTime) : null;
 
-    // ===== Create Auction document =====
+    // Create Auction document
     const auction = await Auction.create({
       title: body.title?.trim() || "Untitled Auction",
       description: body.description?.trim() || "No description available",
@@ -113,9 +107,7 @@ export const createAuction = async (req, res) => {
   }
 };
 
-// ========================
 // GET ALL ACTIVE AUCTIONS
-// ========================
 export const getAuctions = async (req, res) => {
   try {
     const auctions = await Auction.find({ status: "Active" }).populate(
@@ -145,9 +137,7 @@ export const getAuctions = async (req, res) => {
   }
 };
 
-// ========================
 // GET AUCTION BY ID
-// ========================
 export const getAuctionById = async (req, res) => {
   try {
     let auction = await Auction.findById(req.params.id).populate(
@@ -187,9 +177,7 @@ export const getAuctionById = async (req, res) => {
   }
 };
 
-// ========================
 // GET USER’S AUCTIONS
-// ========================
 export const getMyAuctions = async (req, res) => {
   try {
     const auctions = await Auction.find({ owner: req.user._id }).populate(
@@ -206,9 +194,7 @@ export const getMyAuctions = async (req, res) => {
   }
 };
 
-// ========================
 // GET USER’S PURCHASES
-// ========================
 export const getMyPurchases = async (req, res) => {
   try {
     const auctions = await Auction.find({
@@ -223,9 +209,7 @@ export const getMyPurchases = async (req, res) => {
   }
 };
 
-// ========================
 // PLACE BID
-// ========================
 export const placeBid = async (req, res) => {
   try {
     const { amount } = req.body;
